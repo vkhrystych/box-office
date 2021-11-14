@@ -8,10 +8,7 @@ import Numbers from "./components/Numbers";
 import "./Game.css";
 import "react-toastify/dist/ReactToastify.css";
 
-// ALL OF THESE QUESTS NEED COST MONEY
-// increase box price for 10%
-// sell N boxes
-// produce N boxes
+import { notifyOnAchievmentsAndGiveReward } from "./achievments";
 
 function Game() {
   const [boxes, setBoxes] = useState(0);
@@ -65,9 +62,29 @@ function Game() {
     loadGameStateFromLS();
   }, []);
 
+  const saveIdsToLS = (lsVariableName, id, cb) => {
+    const lsData = localStorage.getItem(lsVariableName);
+
+    if (!lsData) {
+      localStorage.setItem(lsVariableName, "[]");
+    }
+
+    const lsDataParsed = JSON.parse(localStorage.getItem(lsVariableName));
+
+    if (lsDataParsed && !lsDataParsed.includes(id)) {
+      lsDataParsed.push(id);
+
+      localStorage.setItem(lsVariableName, JSON.stringify(lsDataParsed));
+
+      cb();
+    }
+  };
+
   const notify = (text, toastId) => {
-    toast(text, {
-      toastId,
+    saveIdsToLS("boxOfficeNotifications", toastId, () => {
+      toast(text, {
+        toastId,
+      });
     });
   };
 
@@ -107,51 +124,9 @@ function Game() {
   };
 
   const giveRewardToUser = (rewardId, rewardCost) => {
-    const userRewards = localStorage.getItem("boxOfficeRewards");
-
-    if (!userRewards) {
-      localStorage.setItem("boxOfficeRewards", "[]");
-    }
-
-    const userRewardsParsed = JSON.parse(
-      localStorage.getItem("boxOfficeRewards")
-    );
-
-    if (userRewardsParsed && !userRewardsParsed.includes(rewardId)) {
-      userRewardsParsed.push(rewardId);
-
-      localStorage.setItem(
-        "boxOfficeRewards",
-        JSON.stringify(userRewardsParsed)
-      );
-
+    saveIdsToLS("boxOfficeRewards", rewardId, () => {
       setMoney((money) => money + rewardCost);
-    }
-  };
-
-  const notifyOnAchievmentsAndGiveReward = () => {
-    const checkBoxesCount = (minBoxesCount) => {
-      const maxBoxesCount = minBoxesCount * 1.2;
-
-      return (
-        boxesProducedAllTime > minBoxesCount &&
-        boxesProducedAllTime < maxBoxesCount
-      );
-    };
-
-    if (checkBoxesCount(10)) {
-      notify("Wow, you produced 10 boxes! Keep it up!", "10boxes");
-      giveRewardToUser("10boxes", 3);
-    } else if (checkBoxesCount(200)) {
-      notify("Wow, you produced 200 boxes! Keep it up!", "200boxes");
-      giveRewardToUser("20boxes", 3);
-    } else if (checkBoxesCount(1000)) {
-      notify("Wow, you produced 1000 boxes! Keep it up!", "1000boxes");
-    } else if (checkBoxesCount(5000)) {
-      notify("Wow, you produced 5000 boxes! Keep it up!", "5000boxes");
-    } else if (checkBoxesCount(20000)) {
-      notify("Wow, you produced 20000 boxes! Keep it up!", "20000boxes");
-    }
+    });
   };
 
   const gameEngine = () => {
@@ -159,7 +134,12 @@ function Game() {
       calcBoxesAndMoney();
     }
 
-    notifyOnAchievmentsAndGiveReward();
+    notifyOnAchievmentsAndGiveReward(
+      boxesProducedAllTime,
+      boxesSoldAllTime,
+      notify,
+      giveRewardToUser
+    );
   };
 
   const increaseWorkerHiringPrice = () => {
@@ -183,7 +163,7 @@ function Game() {
   };
 
   const increaseBoxPrice = () => {
-    setBoxPrice((boxPrice) => boxPrice * 2);
+    setBoxPrice((boxPrice) => boxPrice + 0.01);
     setIncreaseBoxPriceCost((increaseBoxPriceCost) => increaseBoxPriceCost * 3);
   };
 
@@ -259,7 +239,7 @@ function Game() {
                 disabled={!canIncreaseBoxPrice}
                 onClick={increaseBoxPrice}
               >
-                Increase box price x2 ({increaseBoxPriceCost}$)
+                Increase box price for 0.01 ({increaseBoxPriceCost}$)
               </button>
 
               <button onClick={saveGameStateToLS}>Save the game</button>
